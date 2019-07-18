@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -32,7 +31,17 @@ public class HashedWheelTimer implements ScheduledExecutorService {
   private volatile int cursor = 0;
 
   public HashedWheelTimer(long res, int wheelSize, WaitStrategy strategy) {
-    this(DEFAULT_TIMER_NAME, res, wheelSize, strategy, ForkJoinPool.commonPool());
+    this(DEFAULT_TIMER_NAME, res, wheelSize, strategy, Executors
+        .newFixedThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
+          AtomicInteger i = new AtomicInteger();
+
+          @Override
+          public Thread newThread(Runnable r) {
+            Thread thread = new Thread(r, "timer-executor" + i.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
+          }
+        }));
   }
 
   public HashedWheelTimer(String name, long res, int wheelSize, WaitStrategy strategy,
@@ -91,7 +100,7 @@ public class HashedWheelTimer implements ScheduledExecutorService {
 
   @Override
   public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-    return null;
+    return scheduleOneShot(TimeUnit.NANOSECONDS.convert(delay, unit), constantlyNull(command));
   }
 
   @Override
@@ -105,7 +114,10 @@ public class HashedWheelTimer implements ScheduledExecutorService {
     int fireOffset = (int) (delay / resolution);
     int fireRounds = fireOffset / wheelSize;
 
-    return null;
+    Registration<V> r = new OneShotRegistration<>(callable, fireRounds, delay);
+
+    wheel[idx(cursor + fireOffset + 1)].add(r);
+    return r;
   }
 
   @Override
@@ -202,4 +214,10 @@ public class HashedWheelTimer implements ScheduledExecutorService {
     }
   }
 
+  private static Callable<?> constantlyNull(Runnable r) {
+    return () -> {
+      r.run();
+      return null;
+    };
+  }
 }
