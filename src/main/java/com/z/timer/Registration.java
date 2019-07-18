@@ -7,7 +7,7 @@ public interface Registration<T> extends ScheduledFuture<T>, Runnable {
 
     enum Status {
         CANCELLED,
-        READ
+        READY
     }
 
     boolean ready();
@@ -20,7 +20,7 @@ public interface Registration<T> extends ScheduledFuture<T>, Runnable {
 
     void decrement();
 
-    void reeset();
+    void reset();
 
 
     default int compareTo(Delayed o) {

@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -18,6 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class HashedWheelTimer implements ScheduledExecutorService {
 
+  private static final String DEFAULT_TIMER_NAME = "hashed-wheel-timer";
+
   private WaitStrategy waitStrategy;
   private Set<Registration<?>>[] wheel;
   private final int wheelSize;
@@ -27,6 +30,10 @@ public class HashedWheelTimer implements ScheduledExecutorService {
   private final ExecutorService executor;
 
   private volatile int cursor = 0;
+
+  public HashedWheelTimer(long res, int wheelSize, WaitStrategy strategy) {
+    this(DEFAULT_TIMER_NAME, res, wheelSize, strategy, ForkJoinPool.commonPool());
+  }
 
   public HashedWheelTimer(String name, long res, int wheelSize, WaitStrategy strategy,
       ExecutorService exec) {
