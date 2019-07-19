@@ -65,6 +65,12 @@ public class OneShotRegistration<T> extends CompletableFuture<T> implements Regi
 
   @Override
   public boolean cancel(boolean mayInterruptIfRunning) {
-    return false;
+    this.status = Status.CANCELLED;
+    return true;
+  }
+
+  @Override
+  public boolean isCancelled() {
+    return this.status == Status.CANCELLED;
   }
 }

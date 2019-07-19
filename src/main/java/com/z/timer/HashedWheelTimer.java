@@ -105,7 +105,7 @@ public class HashedWheelTimer implements ScheduledExecutorService {
 
   @Override
   public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-    return null;
+    return scheduleOneShot(TimeUnit.NANOSECONDS.convert(delay, unit), callable);
   }
 
   private <V> Registration<V> scheduleOneShot(long delay, Callable<V> callable) {
