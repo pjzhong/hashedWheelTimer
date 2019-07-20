@@ -78,7 +78,7 @@ public class HashedWheelTimer implements ScheduledExecutorService {
             registrations.remove(r);
             executor.execute(r);
             if (!r.isCancelAfterUse()) {
-              //TODO reschedule(r);
+              reschedule(r);
             }
           } else {
             r.decrement();
@@ -123,13 +123,53 @@ public class HashedWheelTimer implements ScheduledExecutorService {
   @Override
   public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period,
       TimeUnit unit) {
-    return null;
+    TimeUnit NANOSECONDS = TimeUnit.NANOSECONDS;
+    return scheduleFixedRate(
+        NANOSECONDS.convert(initialDelay, unit),
+        NANOSECONDS.convert(period, unit),
+        constantlyNull(command));
+  }
+
+  private <V> Registration<V> scheduleFixedRate(long firstDelay, long period,
+      Callable<V> callable) {
+    assertRunning();
+
+    int firstOffset = (int) (firstDelay / resolution);
+    int firstRounds = firstOffset / wheelSize;
+
+    int rescheduleOffset = (int) (period / resolution);
+    int rescheduleRounds = rescheduleOffset / wheelSize;
+
+    Registration<V> r = new FixedRateRegistration<>(callable, firstRounds, period,
+        rescheduleRounds,
+        rescheduleOffset);
+    wheel[idx(cursor + firstOffset + 1)].add(r);
+    return r;
   }
 
   @Override
   public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay,
       TimeUnit unit) {
-    return null;
+    return scheduleFixedDelay(TimeUnit.NANOSECONDS.convert(initialDelay, unit),
+        TimeUnit.NANOSECONDS.convert(delay, unit), constantlyNull(command));
+  }
+
+  private <V> Registration<V> scheduleFixedDelay(long firstDelay, long period,
+      Callable<V> callable) {
+    assertRunning();
+
+    int firstOffset = (int) (firstDelay / resolution);
+    int firstRounds = firstOffset / wheelSize;
+
+    int rescheduleOffset = (int) (period / resolution);
+    int rescheduleRounds = rescheduleOffset / wheelSize;
+
+    Registration<V> r = new FixedDelayRegistration<>(
+        callable, firstRounds, period,
+        rescheduleRounds, rescheduleOffset,
+        this::reschedule);
+    wheel[idx(cursor + firstOffset + 1)].add(r);
+    return r;
   }
 
   @Override
@@ -202,6 +242,11 @@ public class HashedWheelTimer implements ScheduledExecutorService {
   @Override
   public void execute(Runnable command) {
     this.executor.execute(command);
+  }
+
+  private void reschedule(Registration<?> registration) {
+    registration.reset();//You can extends it to add daily and weekly
+    wheel[idx(cursor + registration.getOffset() + 1)].add(registration);
   }
 
   private int idx(int cursor) {

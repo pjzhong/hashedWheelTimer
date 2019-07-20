@@ -7,8 +7,8 @@ import java.util.concurrent.TimeUnit;
 public class OneShotRegistration<T> extends CompletableFuture<T> implements Registration<T> {
 
   private final Callable<T> callable;
-  private volatile int rounds;
-  private volatile Status status;
+  protected volatile int rounds;
+  protected volatile Status status;
 
   private final long delay;
 
